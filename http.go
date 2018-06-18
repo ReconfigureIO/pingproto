@@ -62,7 +62,10 @@ func (r HTTPRoundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
 // so, upgrades the connection. It's important to close the returned WriteCloser.
 func HTTPTryContentEncoding(
 	w http.ResponseWriter, r *http.Request,
-) io.WriteCloser {
+) (
+	wApplication io.WriteCloser,
+	upgraded bool,
+) {
 	if te := r.Header.Get("Accept-Encoding"); te != httpEncodingName {
 		// No upgrade.
 		return struct {
@@ -70,11 +73,11 @@ func HTTPTryContentEncoding(
 			nopCloser
 		}{
 			Writer: w,
-		}
+		}, false
 	}
 
 	w.Header().Set("Content-Εncoding", httpEncodingName)
-	return NewWriter(w)
+	return NewWriter(w), true
 }
 
 // isDecoder enables the tests to tell that a response has been unwrapped.

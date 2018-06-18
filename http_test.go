@@ -12,7 +12,7 @@ import (
 func TestHTTPContentEncodingNegotiation(t *testing.T) {
 	s := httptest.NewServer(
 		http.HandlerFunc(func(wWire http.ResponseWriter, r *http.Request) {
-			wApp := HTTPTryContentEncoding(wWire, r)
+			wApp, upgraded := HTTPTryContentEncoding(wWire, r)
 			defer wApp.Close()
 
 			// Has the effect of writing a ping if the upgrade has happened,
@@ -20,6 +20,11 @@ func TestHTTPContentEncodingNegotiation(t *testing.T) {
 			wApp.Write(nil)
 
 			io.WriteString(wApp, "Hello, world\n")
+			if upgraded {
+				io.WriteString(wApp, "upgraded\n")
+			} else {
+				io.WriteString(wApp, "not upgraded\n")
+			}
 		}))
 	defer s.Close()
 
@@ -55,7 +60,12 @@ func TestHTTPContentEncodingNegotiation(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		if !bytes.Equal([]byte("Hello, world\n"), content) {
+		expected := "Hello, world\nupgraded\n"
+		if !shouldBeDecoder {
+			expected = "Hello, world\nnot upgraded\n"
+		}
+
+		if !bytes.Equal([]byte(expected), content) {
 			t.Fatalf("Unexpected content: %q", content)
 		}
 
